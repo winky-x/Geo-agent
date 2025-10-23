@@ -1,0 +1,5 @@
+{
+  "name": "Geo-Agent Image Localizer",
+  "description": "An intelligent web application that analyzes an uploaded image to identify its geographic location. Using the power of Gemini, Geo-Agent provides an estimated location, detailed reasoning based on visual cues, and a confidence score.",
+  "requestFramePermissions": []
+}
