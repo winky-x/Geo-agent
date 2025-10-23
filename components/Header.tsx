@@ -4,7 +4,7 @@ import { GlobeIcon } from './Icon';
 
 export const Header: React.FC = () => {
   return (
-    <header className="bg-gray-900/50 backdrop-blur-sm border-b border-gray-700/50 sticky top-0 z-10">
+    <header className="bg-gray-900/30 backdrop-blur-xl border-b border-white/10 sticky top-0 z-20">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <GlobeIcon className="w-8 h-8 text-cyan-400" />

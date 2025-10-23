@@ -33,7 +33,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, ima
 
   if (imageUrl) {
     return (
-      <div className="mt-4 p-4 border-2 border-dashed border-gray-600 rounded-xl bg-gray-800/50">
+      <div className="mt-4 p-4 border border-white/10 rounded-2xl bg-black/20 backdrop-blur-lg">
         <h3 className="text-lg font-semibold text-center text-gray-300 mb-4">Uploaded Image</h3>
         <img src={imageUrl} alt="Uploaded preview" className="max-h-96 w-auto mx-auto rounded-lg shadow-lg" />
       </div>
@@ -48,15 +48,15 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, ima
         onDragLeave={e => handleDragEvent(e, false)}
         onDragOver={e => handleDragEvent(e, true)}
         onDrop={handleDrop}
-        className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer transition-colors duration-300
-          ${isDragging ? 'border-cyan-400 bg-gray-700' : 'border-gray-600 bg-gray-800 hover:bg-gray-700'}`}
+        className={`flex flex-col items-center justify-center w-full h-80 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300
+          ${isDragging ? 'border-cyan-400 bg-cyan-400/10 shadow-inner shadow-cyan-500/20' : 'border-white/20 bg-white/5 hover:border-white/30 hover:bg-white/10'}`}
       >
-        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-          <UploadIcon className={`w-10 h-10 mb-3 transition-colors duration-300 ${isDragging ? 'text-cyan-400' : 'text-gray-400'}`} />
-          <p className={`mb-2 text-sm transition-colors duration-300 ${isDragging ? 'text-white' : 'text-gray-400'}`}>
+        <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+          <UploadIcon className={`w-12 h-12 mb-4 transition-colors duration-300 ${isDragging ? 'text-cyan-400' : 'text-gray-400'}`} />
+          <p className={`mb-2 text-lg transition-colors duration-300 ${isDragging ? 'text-white' : 'text-gray-300'}`}>
             <span className="font-semibold">Click to upload</span> or drag and drop
           </p>
-          <p className="text-xs text-gray-500">PNG, JPG, GIF or WEBP</p>
+          <p className="text-sm text-gray-500">PNG, JPG, GIF or WEBP</p>
         </div>
         <input id="image-upload" type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
       </label>

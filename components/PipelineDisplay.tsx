@@ -27,15 +27,15 @@ const PipelineStageItem: React.FC<{ stage: PipelineStage, isLast: boolean }> = (
     };
 
     return (
-        <div className="relative flex items-start">
-             {!isLast && <div className="absolute left-3 top-5 w-0.5 h-full bg-gray-700" />}
+        <div className="relative flex items-start pl-4 transition-all duration-300">
+             {!isLast && <div className="absolute left-7 top-5 -ml-px w-0.5 h-full bg-white/20" />}
             <div className="flex-shrink-0 flex items-center justify-center h-10">
-               <div className="z-10 bg-gray-900">
+               <div className="z-10 bg-[#161B29]">
                  <StatusIcon status={stage.status} />
                </div>
             </div>
             <div className="ml-4">
-                <h4 className={`text-lg font-semibold ${getStatusTextColor()}`}>{stage.name}</h4>
+                <h4 className={`text-lg font-semibold transition-colors duration-300 ${getStatusTextColor()}`}>{stage.name}</h4>
                 <p className="mt-1 text-sm text-gray-400">{stage.description}</p>
             </div>
         </div>
@@ -49,8 +49,8 @@ interface PipelineDisplayProps {
 
 export const PipelineDisplay: React.FC<PipelineDisplayProps> = ({ stages }) => {
     return (
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700 h-full">
-            <h3 className="text-xl font-bold text-cyan-400 mb-6">Geo-Analysis Pipeline Status</h3>
+        <div className="bg-black/20 backdrop-blur-lg border border-white/10 rounded-2xl p-6 h-full">
+            <h3 className="text-xl font-bold text-cyan-400 mb-6 text-center">Geo-Analysis Pipeline Status</h3>
             <div className="space-y-6">
                 {stages.map((stage, index) => (
                     <PipelineStageItem key={stage.id} stage={stage} isLast={index === stages.length - 1} />

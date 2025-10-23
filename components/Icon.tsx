@@ -36,14 +36,20 @@ export const BrainCircuitIcon: React.FC<IconProps> = (props) => (
 
 export const CircleIcon: React.FC<IconProps> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-        <circle cx="12" cy="12" r="7.5" />
+        <circle cx="12" cy="12" r="7.5" opacity="0.3" />
     </svg>
 );
 
 export const SpinnerIcon: React.FC<IconProps> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" {...props}>
-    <path stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" d="M12 3a9 9 0 1 1-6.364 2.636" className="opacity-40" />
-    <path stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" d="M12 3a9 9 0 0 1 6.364 15.364" />
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" {...props}>
+      <path d="M12 3V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M12 18V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M6 12H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M21 12H18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M18.3639 5.63623L16.2426 7.75755" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M7.75732 16.2429L5.636 18.3642" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M18.3639 18.3642L16.2426 16.2429" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M7.75732 7.75755L5.636 5.63623" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 

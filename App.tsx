@@ -125,42 +125,44 @@ const App: React.FC = () => {
   const showError = !!error;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white font-sans">
+    <div className="min-h-screen bg-transparent text-white font-sans">
       <Header />
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 sm:py-12">
         <div className="max-w-7xl mx-auto">
           
           {showUploader && (
-            <div className="text-center mb-8 max-w-4xl mx-auto">
-                <h2 className="text-3xl font-bold text-cyan-400 mb-2">Upload an Image to Begin</h2>
-                <p className="text-gray-400">Our Geo-Agent will analyze visual cues to pinpoint its location.</p>
+            <div className="text-center mb-8 max-w-4xl mx-auto animate-fadeInUp" style={{ animationDelay: '100ms' }}>
+                <h2 className="text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-fuchsia-500 mb-3">
+                  Upload an Image to Begin
+                </h2>
+                <p className="text-lg text-gray-400">Our Geo-Agent will analyze visual cues to pinpoint its location.</p>
             </div>
           )}
 
-          {showUploader && <div className="max-w-4xl mx-auto"><ImageUploader onImageUpload={handleImageUpload} imageUrl={null} /></div>}
+          {showUploader && <div className="max-w-4xl mx-auto animate-fadeInUp" style={{ animationDelay: '200ms' }}><ImageUploader onImageUpload={handleImageUpload} imageUrl={null} /></div>}
 
           {showError && (
-            <div className="mt-6 p-4 bg-red-900/50 border border-red-700 text-red-300 rounded-lg text-center max-w-4xl mx-auto">
+            <div className="mt-6 p-4 bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl text-center max-w-4xl mx-auto animate-fadeInUp">
               {error}
             </div>
           )}
 
           {(showAnalysisButton || showPipeline || showResult || (showError && imageUrl)) && (
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2 animate-fadeInUp" style={{ animationDelay: '100ms' }}>
                 <ImageUploader onImageUpload={handleImageUpload} imageUrl={imageUrl} />
                  {showAnalysisButton && (
-                    <div className="mt-8 text-center">
+                    <div className="mt-8 text-center animate-fadeInUp" style={{ animationDelay: '200ms' }}>
                         <button
                             onClick={handleAnalyzeClick}
-                            className="bg-cyan-500 hover:bg-cyan-400 text-gray-900 font-bold py-3 px-8 rounded-full text-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-cyan-500/20"
+                            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3 px-8 rounded-full text-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-cyan-500/30 focus:outline-none focus:ring-4 focus:ring-cyan-500/50"
                         >
                             Start Geo-Analysis Pipeline
                         </button>
                     </div>
                 )}
               </div>
-              <div className="lg:col-span-3">
+              <div className="lg:col-span-3 animate-fadeInUp" style={{ animationDelay: '200ms' }}>
                 {showPipeline && <PipelineDisplay stages={pipelineStages} />}
                 {showResult && (
                   <Suspense fallback={<Loader />}>
@@ -172,10 +174,10 @@ const App: React.FC = () => {
           )}
           
           {(showResult || (showError && imageUrl)) && (
-             <div className="mt-8 text-center">
+             <div className="mt-8 text-center animate-fadeInUp">
                 <button
                   onClick={handleAnalyzeAnother}
-                  className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-full transition-colors duration-300"
+                  className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white font-bold py-2 px-6 rounded-full transition-colors duration-300 border border-white/20"
                 >
                   Analyze Another Image
                 </button>
@@ -186,7 +188,7 @@ const App: React.FC = () => {
 
        <button
         onClick={() => setIsChatOpen(true)}
-        className="fixed bottom-6 right-6 bg-cyan-500 hover:bg-cyan-400 text-gray-900 rounded-full p-4 shadow-lg transform transition-all hover:scale-110 focus:outline-none"
+        className="fixed bottom-6 right-6 bg-gradient-to-br from-cyan-500 to-fuchsia-600 text-white rounded-full p-4 shadow-lg shadow-cyan-500/30 transform transition-all hover:scale-110 focus:outline-none focus:ring-4 ring-cyan-500/50"
         aria-label="Open AI Chat"
       >
         <ChatBubbleIcon className="w-8 h-8" />

@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { GlobeIcon } from './Icon';
 
@@ -21,12 +22,14 @@ export const Loader: React.FC = () => {
     }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center text-center my-12">
-        <div className="relative">
-            <GlobeIcon className="w-16 h-16 text-cyan-500 animate-spin-slow" />
-            <div className="absolute inset-0 border-2 border-cyan-500/30 rounded-full animate-ping"></div>
+    <div className="flex flex-col items-center justify-center text-center my-12 h-full">
+        <div className="relative w-24 h-24">
+             <GlobeIcon className="absolute inset-0 m-auto w-10 h-10 text-cyan-400 animate-pulse" style={{ animationDuration: '1.5s' }}/>
+             <div className="absolute inset-0 border-2 border-cyan-500/30 rounded-full animate-spin-slow"></div>
+             <div className="absolute inset-2 border-t-2 border-fuchsia-500/50 rounded-full animate-spin-reverse-slow"></div>
+             <div className="absolute inset-0 rounded-full animate-ping border border-cyan-500/50"></div>
         </div>
-      <p className="mt-4 text-lg text-gray-300">Agent is analyzing the image...</p>
+      <p className="mt-6 text-lg text-gray-300">Agent is analyzing the image...</p>
       <p className="text-sm text-gray-500">This may take a moment.</p>
     </div>
   );
