@@ -1,200 +1,140 @@
-
-import React, { useState, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useCallback, lazy, Suspense, useRef, useEffect } from 'react';
 import { Header } from './components/Header';
-import { ImageUploader } from './components/ImageUploader';
+import { MediaPreview } from './components/MediaPreview';
 import { PipelineDisplay } from './components/PipelineDisplay';
-import { analyzeImageLocation } from './services/geminiService';
-import type { AnalysisResult, PipelineStage, StageStatus } from './types';
+import { analyzeMediaLocation } from './services/analysisService';
+import type { AnalysisResult, PipelineStage } from './types';
 import { Loader } from './components/Loader';
-import { Chatbot } from './components/Chatbot';
-import { ChatBubbleIcon } from './components/Icon';
+import { FloatingInputBar } from './components/FloatingInputBar';
+import { GlobeIcon } from './components/Icon';
+import { WelcomeScreen } from './components/WelcomeScreen';
+
 
 const AnalysisResultDisplay = lazy(() => 
   import('./components/AnalysisResultDisplay').then(module => ({ default: module.AnalysisResultDisplay }))
 );
 
+const Chatbot = lazy(() => import('./components/Chatbot').then(module => ({ default: module.Chatbot })));
+
+type Message = {
+  id: number;
+  role: 'system' | 'media' | 'pipeline' | 'result' | 'error';
+  content: string | React.ReactNode;
+};
+
 const INITIAL_PIPELINE_STAGES: PipelineStage[] = [
-    { id: 'A', name: 'Stage A: Input & EXIF Analysis', description: 'Ingesting image and parsing metadata for GPS coordinates.', status: 'pending' },
-    { id: 'B', name: 'Stage B: Preprocessing', description: 'Image normalization, resizing, and enhancement for model compatibility.', status: 'pending' },
-    { id: 'C', name: 'Stage C: Feature Extraction', description: 'Using CLIP to generate vector embeddings from visual features.', status: 'pending' },
-    { id: 'D', name: 'Stage D: Geo-Retrieval', description: 'Querying FAISS index with embeddings to find candidate locations.', status: 'pending' },
-    { id: 'E', name: 'Stage E: Candidate Fusion', description: 'Aggregating and ranking potential geographic matches.', status: 'pending' },
-    { id: 'F', name: 'Stage F: LLM Verification with Grounding', description: 'Using Gemini with Search/Maps to analyze candidates and visual evidence.', status: 'pending' },
-    { id: 'G', name: 'Stage G: Output Generation', description: 'Formatting final coordinates, reasoning, and confidence score.', status: 'pending' },
+    { id: 'A', name: 'Stage A: Media Ingestion & Forensics', description: 'Extracting key frames and preparing media for analysis.', status: 'pending' },
+    { id: 'B', name: 'Stage B: Scene & Object Recognition (Gemini)', description: 'Identifying landmarks, text, and environmental clues.', status: 'pending' },
+    { id: 'C', name: 'Stage C: Hypothesis Generation (Gemini)', description: 'Generating potential locations based on recognized objects.', status: 'pending' },
+    { id: 'D', name: 'Stage D: Visual Verification (Nemotron-VL)', description: 'Cross-examining location hypotheses against visual evidence.', status: 'pending' },
+    { id: 'E', name: 'Stage E: Multi-Hypothesis Synthesis (GPT-OSS)', description: 'Synthesizing all data to determine the most probable location.', status: 'pending' },
+    { id: 'F', name: 'Stage F: Geographic & Web Grounding (Google)', description: 'Validating the final location against real-world map and web data.', status: 'pending' },
+    { id: 'G', name: 'Stage G: Dossier Compilation', description: 'Formatting the complete forensic analysis for final report.', status: 'pending' },
 ];
 
 
 const App: React.FC = () => {
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>(INITIAL_PIPELINE_STAGES);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const messageListRef = useRef<HTMLDivElement>(null);
+  
+  const nextId = useRef(0);
+  const getUniqueId = () => nextId.current++;
 
-  const handleImageUpload = (file: File) => {
-    if (imageUrl) {
-      URL.revokeObjectURL(imageUrl);
-    }
+  const scrollToBottom = () => {
+    messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' });
+  };
+  
+  useEffect(scrollToBottom, [messages]);
+
+  const addMessage = useCallback((role: Message['role'], content: Message['content']) => {
+    setMessages(prev => [...prev, { id: getUniqueId(), role, content }]);
+  }, []);
+
+  const handleFileUpload = async (file: File) => {
+    if (isProcessing) return;
+    const mediaUrl = URL.createObjectURL(file);
+    const isVideo = file.type.startsWith('video/');
     
-    setImageFile(file);
-    setImageUrl(URL.createObjectURL(file));
+    const mediaMessage: Message = { id: getUniqueId(), role: 'media', content: <MediaPreview mediaUrl={mediaUrl} isVideo={isVideo} /> };
+    
+    let pipelineStages = [...INITIAL_PIPELINE_STAGES].map(stage => ({ ...stage, status: 'pending' as const }));
+    const pipelineMessage: Message = { id: getUniqueId(), role: 'pipeline', content: <PipelineDisplay stages={pipelineStages} /> };
+    const pipelineMessageId = pipelineMessage.id;
 
-    setAnalysisResult(null);
-    setError(null);
-    setIsProcessing(false);
-    setPipelineStages(INITIAL_PIPELINE_STAGES);
-  };
-
-  const updateStageStatus = (stageId: string, status: StageStatus, delay: number): Promise<void> => {
-      return new Promise(resolve => {
-          setTimeout(() => {
-              setPipelineStages(prevStages =>
-                  prevStages.map(stage =>
-                      stage.id === stageId ? { ...stage, status } : stage
-                  )
-              );
-              resolve();
-          }, delay);
-      });
-  };
-
-  const handleAnalyzeClick = useCallback(async () => {
-    if (!imageFile) {
-      setError('Please upload an image first.');
-      return;
-    }
-
+    setMessages([mediaMessage, pipelineMessage]);
     setIsProcessing(true);
-    setError(null);
-    setAnalysisResult(null);
-    setPipelineStages(INITIAL_PIPELINE_STAGES);
+
+    const onProgress = (updatedStages: PipelineStage[]) => {
+        setMessages(prev => prev.map(msg => 
+            msg.id === pipelineMessageId ? { ...msg, content: <PipelineDisplay stages={updatedStages} /> } : msg
+        ));
+    };
 
     try {
-        await updateStageStatus('A', 'running', 0);
-        await updateStageStatus('A', 'completed', 1500);
-        
-        await updateStageStatus('B', 'running', 0);
-        await updateStageStatus('B', 'completed', 1000);
+      const result = await analyzeMediaLocation(file, onProgress, pipelineStages);
+      
+      setMessages(prev => prev.map(msg => msg.id === pipelineMessageId ? {
+        id: pipelineMessageId,
+        role: 'result',
+        content: <Suspense fallback={<Loader />}><AnalysisResultDisplay result={result} /></Suspense>
+      } : msg));
 
-        await updateStageStatus('C', 'running', 0);
-        await updateStageStatus('C', 'completed', 2500);
-        
-        await updateStageStatus('D', 'running', 0);
-        await updateStageStatus('D', 'completed', 2000);
-        
-        await updateStageStatus('E', 'running', 0);
-        await updateStageStatus('E', 'completed', 1000);
-
-        await updateStageStatus('F', 'running', 0);
-        const result = await analyzeImageLocation(imageFile);
-        await updateStageStatus('F', 'completed', 100);
-
-        await updateStageStatus('G', 'running', 0);
-        await updateStageStatus('G', 'completed', 500);
-
-        setAnalysisResult(result);
+      URL.revokeObjectURL(mediaUrl);
 
     } catch (err) {
       const errorMessage = err instanceof Error ? `Analysis failed: ${err.message}` : 'An unknown error occurred during analysis.';
-      setError(errorMessage);
-      setPipelineStages(prev => prev.map(s => s.status === 'running' ? {...s, status: 'failed'} : s));
+      addMessage('error', errorMessage);
       console.error(err);
+      setMessages(prev => prev.filter(msg => msg.id !== pipelineMessageId));
     } finally {
       setIsProcessing(false);
     }
-  }, [imageFile]);
-
-  const handleAnalyzeAnother = () => {
-     if (imageUrl) {
-        URL.revokeObjectURL(imageUrl);
-    }
-     setImageFile(null);
-     setImageUrl(null);
-     setAnalysisResult(null);
-     setError(null);
-     setIsProcessing(false);
-     setPipelineStages(INITIAL_PIPELINE_STAGES);
-  }
-
-  const showUploader = !imageUrl;
-  const showAnalysisButton = imageUrl && !isProcessing && !analysisResult && !error;
-  const showPipeline = imageUrl && isProcessing && !analysisResult;
-  const showResult = !!analysisResult;
-  const showError = !!error;
+  };
 
   return (
-    <div className="min-h-screen bg-transparent text-white font-sans">
+    <div className="h-screen w-screen flex flex-col font-sans bg-transparent text-gray-200">
       <Header />
-      <main className="container mx-auto px-4 py-8 sm:py-12">
-        <div className="max-w-7xl mx-auto">
-          
-          {showUploader && (
-            <div className="text-center mb-8 max-w-4xl mx-auto animate-fadeInUp" style={{ animationDelay: '100ms' }}>
-                <h2 className="text-4xl lg:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-fuchsia-500 mb-3">
-                  Upload an Image to Begin
-                </h2>
-                <p className="text-lg text-gray-400">Our Geo-Agent will analyze visual cues to pinpoint its location.</p>
-            </div>
-          )}
+      {messages.length === 0 ? (
+        <WelcomeScreen onFileUpload={handleFileUpload} />
+      ) : (
+        <main ref={messageListRef} className="flex-1 overflow-y-auto p-4 md:p-6 no-scrollbar pb-32">
+          <div className="max-w-4xl mx-auto space-y-6">
+            {messages.map((msg) => {
+               const isSpecialCard = msg.role === 'media' || msg.role === 'pipeline' || msg.role === 'result' || msg.role === 'error';
 
-          {showUploader && <div className="max-w-4xl mx-auto animate-fadeInUp" style={{ animationDelay: '200ms' }}><ImageUploader onImageUpload={handleImageUpload} imageUrl={null} /></div>}
-
-          {showError && (
-            <div className="mt-6 p-4 bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl text-center max-w-4xl mx-auto animate-fadeInUp">
-              {error}
-            </div>
-          )}
-
-          {(showAnalysisButton || showPipeline || showResult || (showError && imageUrl)) && (
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-              <div className="lg:col-span-2 animate-fadeInUp" style={{ animationDelay: '100ms' }}>
-                <ImageUploader onImageUpload={handleImageUpload} imageUrl={imageUrl} />
-                 {showAnalysisButton && (
-                    <div className="mt-8 text-center animate-fadeInUp" style={{ animationDelay: '200ms' }}>
-                        <button
-                            onClick={handleAnalyzeClick}
-                            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3 px-8 rounded-full text-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-cyan-500/30 focus:outline-none focus:ring-4 focus:ring-cyan-500/50"
-                        >
-                            Start Geo-Analysis Pipeline
-                        </button>
+              return (
+                <div key={msg.id} className="flex items-start gap-3 w-full justify-start animate-fadeInUp">
+                  {msg.role === 'system' && (
+                     <div className="w-8 h-8 rounded-full bg-blue-900/40 flex-shrink-0 flex items-center justify-center border border-blue-500/30">
+                      <GlobeIcon className="w-5 h-5 text-blue-400" />
                     </div>
-                )}
-              </div>
-              <div className="lg:col-span-3 animate-fadeInUp" style={{ animationDelay: '200ms' }}>
-                {showPipeline && <PipelineDisplay stages={pipelineStages} />}
-                {showResult && (
-                  <Suspense fallback={<Loader />}>
-                    <AnalysisResultDisplay result={analysisResult} />
-                  </Suspense>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {(showResult || (showError && imageUrl)) && (
-             <div className="mt-8 text-center animate-fadeInUp">
-                <button
-                  onClick={handleAnalyzeAnother}
-                  className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white font-bold py-2 px-6 rounded-full transition-colors duration-300 border border-white/20"
-                >
-                  Analyze Another Image
-                </button>
-              </div>
-          )}
-        </div>
-      </main>
-
-       <button
-        onClick={() => setIsChatOpen(true)}
-        className="fixed bottom-6 right-6 bg-gradient-to-br from-cyan-500 to-fuchsia-600 text-white rounded-full p-4 shadow-lg shadow-cyan-500/30 transform transition-all hover:scale-110 focus:outline-none focus:ring-4 ring-cyan-500/50"
-        aria-label="Open AI Chat"
-      >
-        <ChatBubbleIcon className="w-8 h-8" />
-      </button>
-
-      {isChatOpen && <Chatbot onClose={() => setIsChatOpen(false)} />}
+                  )}
+                  
+                  <div className={`
+                      w-full
+                      ${!isSpecialCard ? 'bg-gray-800/50 backdrop-blur-lg border border-gray-700/80 text-gray-200 rounded-2xl p-4 whitespace-pre-wrap max-w-[calc(100%-44px)]' : ''}
+                      ${msg.role === 'error' ? 'bg-red-900/50 backdrop-blur-lg border border-red-500/50 text-red-200 rounded-2xl p-4' : ''}
+                    `}>
+                    {msg.content}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </main>
+      )}
+      {isChatOpen && (
+        <Suspense fallback={<div />}>
+          <Chatbot onClose={() => setIsChatOpen(false)} />
+        </Suspense>
+      )}
+      <FloatingInputBar 
+        onFileUpload={handleFileUpload} 
+        onToggleChat={() => setIsChatOpen(true)}
+        isProcessing={isProcessing} 
+      />
     </div>
   );
 };

@@ -1,6 +1,3 @@
-// This file is renamed to analysisService.ts
-// The build tool will handle the rename.
-// The content below is the new content for analysisService.ts
 import { GoogleGenAI } from "@google/genai";
 import type { AnalysisResult, GroundingChunk, ChatHistoryItem, PipelineStage } from '../types';
 
@@ -107,7 +104,12 @@ const parseJsonFromMarkdown = (text: string): any => {
     const jsonRegex = /(?:```json\s*)?({[\s\S]*})(?:\s*```)?/;
     const match = text.match(jsonRegex);
     if (!match || !match[1]) {
-        throw new Error("No valid JSON object found in the response.");
+        // If no JSON block is found, try to parse the whole string as JSON
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+             throw new Error("No valid JSON object found in the response.");
+        }
     }
     return JSON.parse(match[1]);
 };
@@ -126,8 +128,9 @@ export const analyzeMediaLocation = async (
         onProgress(currentStages);
     };
 
-    const isVideo = mediaFile.type.startsWith('video/');
+    // Stage A: Media Ingestion
     updateStage('A', 'running');
+    const isVideo = mediaFile.type.startsWith('video/');
     const mediaParts = [];
     if (isVideo) {
         const frames = await extractFramesFromVideo(mediaFile);
@@ -139,48 +142,65 @@ export const analyzeMediaLocation = async (
     }
     updateStage('A', 'completed');
     
-    // Stage B: Initial Analysis (Gemini)
-    updateStage('B', 'running');
+    // Setup Gemini
     const GEMINI_API_KEY = process.env.API_KEY;
     if (!GEMINI_API_KEY) throw new Error("API_KEY environment variable not set");
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-    const geminiPrompt = `You are Geo-Agent, an expert in geographic localization from media. Analyze the provided media and determine its location. Provide your result in a structured JSON format inside a JSON markdown block. The JSON object must have the following keys: 'locationName' (e.g., 'Eiffel Tower, Paris, France'), 'latitude' (a number), 'longitude' (a number), and 'reasoning' (a detailed explanation of how you identified the location, citing visual clues).`;
-    
-    const geminiResponse = await ai.models.generateContent({
+
+    // Stage B: Scene & Object Recognition
+    updateStage('B', 'running');
+    const sceneRecPrompt = `Analyze the provided media and identify key visual clues. List objects, landmarks, text (transcribe it), architectural styles, clothing, flora, fauna, and any other distinctive features. Be detailed and thorough. Output your findings as a JSON object with a single key 'observations', which is a rich, descriptive string.`;
+    const sceneRecResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: { parts: [{ text: geminiPrompt }, ...mediaParts] },
+        contents: { parts: [{ text: sceneRecPrompt }, ...mediaParts] },
     });
-    
-    const geminiResultText = geminiResponse.text.trim();
-    const geminiJson = parseJsonFromMarkdown(geminiResultText);
-    const geminiReasoning = geminiJson.reasoning || "No reasoning provided by Gemini.";
+    const sceneRecJson = parseJsonFromMarkdown(sceneRecResponse.text.trim());
+    const sceneObservations = sceneRecJson.observations || "No specific observations were made.";
     updateStage('B', 'completed');
     
-    // Stage C: Cross-Examination (Nemotron-VL)
+    // Stage C: Hypothesis Generation
     updateStage('C', 'running');
-    const nemotronPrompt = `You are a verification agent. Given the following media and an initial analysis, your job is to either confirm, correct, or refute the findings. Provide your own independent reasoning. The initial analysis is: \n\n${JSON.stringify(geminiJson, null, 2)}\n\nOutput your findings as a JSON object with a single key: 'reasoning'.`;
+    const hypothesisPrompt = `Based on the following observations, generate up to 3 potential geographic locations. For each hypothesis, provide a location name, latitude, longitude, and reasoning.
+    Observations: ${sceneObservations}
+    Output your result in a structured JSON format inside a JSON markdown block. The JSON object must have a key 'hypotheses', which is an array of objects, each with 'locationName', 'latitude', 'longitude', and 'reasoning' keys.`;
+    const hypothesisResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts: [{ text: hypothesisPrompt }] }, // No media needed here, just text
+    });
+    const hypothesisJson = parseJsonFromMarkdown(hypothesisResponse.text.trim());
+    const hypotheses = hypothesisJson.hypotheses || [];
+    updateStage('C', 'completed');
+
+    // Stage D: Visual Verification (Nemotron-VL)
+    updateStage('D', 'running');
+    const nemotronPrompt = `You are a visual verification agent. Given the following media and a list of location hypotheses, your job is to visually analyze the media and determine which hypothesis is the most plausible. Provide your own independent reasoning for your choice.
+    Hypotheses: \n\n${JSON.stringify(hypotheses, null, 2)}\n\n
+    Output your findings as a JSON object with a single key: 'reasoning'. This reasoning should clearly state which location you confirm and why, based on visual evidence.`;
     const nemotronResultText = await callOpenRouter('nvidia/nemotron-nano-12b-v2-vl:free', nemotronPrompt, mediaParts.map(p => p.inlineData));
     const nemotronJson = parseJsonFromMarkdown(nemotronResultText);
     const nemotronReasoning = nemotronJson.reasoning || "No reasoning provided by Nemotron.";
-    updateStage('C', 'completed');
+    updateStage('D', 'completed');
 
-    // Stage D: Synthesis & Deep Reasoning (GPT-OSS)
-    updateStage('D', 'running');
-    const synthesisPrompt = `You are a master geo-analyst. Your task is to synthesize information from two junior analysts to produce a final, definitive conclusion.
+    // Stage E: Synthesis & Deep Reasoning (GPT-OSS)
+    updateStage('E', 'running');
+    const synthesisPrompt = `You are a master geo-analyst. Your task is to synthesize all available intelligence to produce a final, definitive conclusion.
     
-    Analyst 1 (Gemini) concluded:
-    ${JSON.stringify(geminiJson, null, 2)}
+    Initial Scene Observations:
+    ${sceneObservations}
     
-    Analyst 2 (Nemotron) provided this verification:
+    Location Hypotheses Generated:
+    ${JSON.stringify(hypotheses, null, 2)}
+    
+    Visual Verification Report:
     ${JSON.stringify(nemotronJson, null, 2)}
 
-    Based on the visual evidence in the media and these two analyses, provide a final, highly accurate determination. Output your result as a single JSON object. This object MUST have the following keys: 'locationName', 'latitude', 'longitude', 'reasoning' (your final, synthesized reasoning), and 'confidence' (a score from 0 to 100).`;
+    Based on all this evidence, provide a final, highly accurate determination. Output your result as a single JSON object. This object MUST have: 'locationName', 'latitude', 'longitude', 'reasoning' (your final, synthesized justification), and 'confidence' (a score from 0 to 100).`;
     const finalResultText = await callOpenRouter('openai/gpt-oss-120b', synthesisPrompt, mediaParts.map(p => p.inlineData));
     const finalJson = parseJsonFromMarkdown(finalResultText);
-    updateStage('D', 'completed');
+    updateStage('E', 'completed');
     
-    // Stage E: Grounding
-    updateStage('E', 'running');
+    // Stage F: Grounding
+    updateStage('F', 'running');
     const groundingResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: { parts: [{ text: `Find sources for the location: ${finalJson.locationName}` }] },
@@ -197,19 +217,20 @@ export const analyzeMediaLocation = async (
             groundingChunks.push({ type: 'maps', uri: chunk.maps.uri, title: chunk.maps.title || 'Google Maps Result' });
         }
     }
-    updateStage('E', 'completed');
+    updateStage('F', 'completed');
     
-    // Stage F: Final Output
-    updateStage('F', 'running');
+    // Stage G: Dossier Compilation
+    updateStage('G', 'running');
     const finalResult: AnalysisResult = {
         ...finalJson,
         grounding: groundingChunks,
         intermediateSteps: [
-            { model: 'Gemini 2.5 Flash', reasoning: geminiReasoning },
-            { model: 'Nemotron-VL', reasoning: nemotronReasoning },
+            { model: 'Scene Recognition (Gemini)', reasoning: sceneObservations },
+            { model: 'Hypothesis Generation (Gemini)', reasoning: JSON.stringify(hypotheses, null, 2) },
+            { model: 'Visual Verification (Nemotron-VL)', reasoning: nemotronReasoning },
         ]
     };
-    updateStage('F', 'completed');
+    updateStage('G', 'completed');
 
     return finalResult;
 };

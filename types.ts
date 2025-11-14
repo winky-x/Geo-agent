@@ -1,5 +1,3 @@
-
-
 export interface GroundingChunk {
   type: 'web' | 'maps';
   uri: string;
@@ -10,10 +8,16 @@ export interface AnalysisResult {
   locationName: string;
   latitude: number;
   longitude: number;
-  reasoning: string;
+  reasoning: string; // The final, synthesized reasoning
   confidence: number;
   grounding?: GroundingChunk[];
+  // New field for intermediate steps
+  intermediateSteps: {
+      model: string;
+      reasoning: string;
+  }[];
 }
+
 
 export type StageStatus = 'pending' | 'running' | 'completed' | 'failed';
 

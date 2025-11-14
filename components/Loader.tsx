@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { GlobeIcon } from './Icon';
 
@@ -29,7 +28,7 @@ export const Loader: React.FC = () => {
              <div className="absolute inset-2 border-t-2 border-fuchsia-500/50 rounded-full animate-spin-reverse-slow"></div>
              <div className="absolute inset-0 rounded-full animate-ping border border-cyan-500/50"></div>
         </div>
-      <p className="mt-6 text-lg text-gray-300">Agent is analyzing the image...</p>
+      <p className="mt-6 text-lg text-gray-300">Agent is analyzing the media...</p>
       <p className="text-sm text-gray-500">This may take a moment.</p>
     </div>
   );

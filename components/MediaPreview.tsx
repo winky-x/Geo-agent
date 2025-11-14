@@ -11,7 +11,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({ mediaUrl, isVideo })
   }
   
   return (
-    <div className="p-2 border border-gray-200/80 rounded-2xl bg-white/50 backdrop-blur-lg">
+    <div className="p-2 border border-gray-700/80 rounded-2xl bg-gray-900/50 backdrop-blur-lg">
       {isVideo ? (
         <video 
           src={mediaUrl} 
